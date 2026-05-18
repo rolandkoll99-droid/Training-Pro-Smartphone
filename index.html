@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>ESV Grein | Steuerung + separates Zuschauer-Fenster</title>
+    <title>ESV Grein | Steuerung + Zuschauer-Fenster (mit 0-Punkte)</title>
     <style>
         * {
             margin: 0;
@@ -15,7 +15,6 @@
             background: #0a2b14;
             min-height: 100vh;
         }
-        /* ----- Steuerungs-Ansicht (PC) ----- */
         .control-view {
             max-width: 1400px;
             margin: 0 auto;
@@ -134,7 +133,7 @@
         .kehre-row.current-kehre-bg { background: #c8e6c9 !important; border-left: 4px solid #2e7d32; }
         .kehre-row.played-kehre-bg { background: #ffcdd2 !important; border-left: 4px solid #c62828; }
         .kehre-nr { font-weight: 800; width: 42px; font-size: 0.7rem; }
-        .punkte-group { display: flex; gap: 4px; align-items: center; }
+        .punkte-group { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
         .side-punkt {
             min-width: 38px;
             background: white;
@@ -144,6 +143,7 @@
             cursor: pointer;
             padding: 5px 0;
         }
+        .side-punkt.zero-btn { background: #f0e6d2; border-color: #d4c5a3; }
         .side-value {
             background: #2c7a4d;
             color: white;
@@ -240,10 +240,9 @@
     </style>
 </head>
 <body>
-    <!-- STEUERUNGSANSICHT (PC) -->
     <div id="controlView" class="control-view">
         <div class="top-bar">
-            <h1>🥌 ESV Grein · Steuerungsmodus 🥌</h1>
+            <h1>🥌 ESV Grein · Steuerung (mit 0-Punkte) 🥌</h1>
             <div class="settings-group">
                 <input type="text" id="teamANameSide" class="team-name-input" value="Mannschaft W">
                 <span>🆚</span>
@@ -264,7 +263,7 @@
             <div class="input-left">
                 <div class="team-header"><span>🥌</span> <span id="leftTeamName">Mannschaft W</span></div>
                 <div id="leftKehrenPanel" class="kehren-grid-side"></div>
-                <div style="text-align:center; font-size:9px; margin-top:12px;">1-4 Punkte</div>
+                <div style="text-align:center; font-size:9px; margin-top:12px;">0-4 Punkte pro Kehre</div>
             </div>
 
             <div class="center-control">
@@ -297,7 +296,7 @@
             <div class="input-right">
                 <div class="team-header"><span id="rightTeamName">Mannschaft E</span> <span>🥌</span></div>
                 <div id="rightKehrenPanel" class="kehren-grid-side"></div>
-                <div style="text-align:center; font-size:9px; margin-top:12px;">1-4 Punkte</div>
+                <div style="text-align:center; font-size:9px; margin-top:12px;">0-4 Punkte pro Kehre</div>
             </div>
         </div>
 
@@ -311,10 +310,9 @@
     </div>
 
     <script>
-        // ---------- SPIELSTAND ----------
         let anzahlKehren = 6;
-        let teamAPunkte = new Array(6).fill(0);
-        let teamBPunkte = new Array(6).fill(0);
+        let teamAPunkte = new Array(6).fill(null);  // null = noch nicht gespielt, 0 = gewertet mit 0
+        let teamBPunkte = new Array(6).fill(null);
         let gamesWonA = 0, gamesWonB = 0;
         let overallWinner = false;
         let teamAName = "Mannschaft W", teamBName = "Mannschaft E";
@@ -333,12 +331,30 @@
         const currentKehreSpan = document.getElementById('currentKehreDisplay');
         const globalWinnerMsgDiv = document.getElementById('globalWinnerMsg');
         
-        // Referenz zum Zuschauer-Fenster (falls offen)
         let spectatorWindow = null;
-
-        const sum = arr => arr.reduce((a,b)=>a+b,0);
-
-        // Timer-Funktionen
+        const sum = arr => arr.reduce((a,b) => (b !== null ? a + b : a), 0);
+        
+        // Prüft ob eine Kehre bereits gespielt ist (beide Teams haben Wert gesetzt, auch 0)
+        function isKehrePlayed(idx) {
+            return teamAPunkte[idx] !== null && teamBPunkte[idx] !== null;
+        }
+        
+        function getCurrentKehreNum() {
+            if (overallWinner) return anzahlKehren;
+            for (let i = 0; i < anzahlKehren; i++) {
+                if (!isKehrePlayed(i)) return i + 1;
+            }
+            return anzahlKehren;
+        }
+        
+        function allKehrenPlayed() {
+            for (let i = 0; i < anzahlKehren; i++) {
+                if (!isKehrePlayed(i)) return false;
+            }
+            return true;
+        }
+        
+        // Timer
         function updateTimerUI() {
             let elapsed = 0;
             if (timerRunning && gameStartTime) elapsed = Date.now() - gameStartTime;
@@ -348,11 +364,8 @@
             const h = Math.floor(totalSec/3600), m = Math.floor((totalSec%3600)/60), s = totalSec%60;
             const timeStr = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
             timerDisplayCompact.innerText = timeStr;
-            // Wenn Zuschauer-Fenster offen, Timer dort aktualisieren
             if (spectatorWindow && !spectatorWindow.closed) {
-                try {
-                    spectatorWindow.updateSpectatorTimer(timeStr);
-                } catch(e) {}
+                try { spectatorWindow.updateSpectatorTimer(timeStr); } catch(e) {}
             }
         }
         function startTimerInterval() { if(timerInterval) clearInterval(timerInterval); timerInterval = setInterval(updateTimerUI, 200); }
@@ -365,20 +378,13 @@
         }
         document.getElementById('timerResetCompactBtn').onclick = resetTimer;
         document.getElementById('timerPauseCompactBtn').onclick = pauseTimer;
-
-        function getCurrentKehreNum() {
-            if (overallWinner) return anzahlKehren;
-            for (let i=0; i<anzahlKehren; i++) if (teamAPunkte[i]===0 && teamBPunkte[i]===0) return i+1;
-            return anzahlKehren;
-        }
         
-        // Hauptfunktion: Aktualisiert alle Anzeigen (Steuerung + Zuschauer-Fenster)
         function updateAllDisplays() {
             const sumA = sum(teamAPunkte), sumB = sum(teamBPunkte);
             const current = getCurrentKehreNum();
+            const allPlayed = allKehrenPlayed();
             const winnerMsg = overallWinner ? (gamesWonA >= requiredGamesToWin ? teamAName : teamBName) : null;
             
-            // Steuerungs-UI aktualisieren
             centerRoundA.innerText = sumA; centerRoundB.innerText = sumB;
             centerGamesA.innerText = gamesWonA; centerGamesB.innerText = gamesWonB;
             stampA.innerText = (gamesWonA >= requiredGamesToWin) ? '🏆 GESAMTSIEGER' : '';
@@ -389,14 +395,18 @@
                 globalWinnerMsgDiv.innerHTML = `<div style="background:#ffecb3; border-radius:60px; padding:8px;">🏆🏆🏆 ${winnerMsg} GESAMTSIEGER (${requiredGamesToWin} Siege) 🏆🏆🏆</div>`;
                 document.body.classList.add('game-finished');
             } else {
-                globalWinnerMsgDiv.innerHTML = '';
+                if (allPlayed && !overallWinner) {
+                    globalWinnerMsgDiv.innerHTML = `<div style="background:#ffe0a3; border-radius:60px; padding:8px;">📢 Alle ${anzahlKehren} Kehren gespielt! Nutze "Spiel automatisch werten". 📢</div>`;
+                } else {
+                    globalWinnerMsgDiv.innerHTML = '';
+                }
                 document.body.classList.remove('game-finished');
             }
             
-            // Farben für Kehren in Steuerung
+            // Farben Kehren
             const leftRows = document.querySelectorAll('#leftKehrenPanel .kehre-row');
             const rightRows = document.querySelectorAll('#rightKehrenPanel .kehre-row');
-            for (let i=0; i<leftRows.length; i++) {
+            for (let i = 0; i < leftRows.length; i++) {
                 leftRows[i].classList.remove('current-kehre-bg','played-kehre-bg');
                 rightRows[i].classList.remove('current-kehre-bg','played-kehre-bg');
                 if (!overallWinner) {
@@ -405,42 +415,72 @@
                 }
             }
             
-            // Zuschauer-Fenster aktualisieren (wenn offen)
+            // Zuschauer-Fenster
             if (spectatorWindow && !spectatorWindow.closed) {
                 try {
                     spectatorWindow.updateSpectatorData({
-                        teamA: teamAName,
-                        teamB: teamBName,
-                        sumA: sumA,
-                        sumB: sumB,
-                        gamesA: gamesWonA,
-                        gamesB: gamesWonB,
+                        teamA: teamAName, teamB: teamBName,
+                        sumA: sumA, sumB: sumB,
+                        gamesA: gamesWonA, gamesB: gamesWonB,
                         currentKehre: overallWinner ? "🏆" : current,
                         overallWinner: overallWinner,
                         winnerName: winnerMsg,
                         required: requiredGamesToWin
                     });
-                    // Timer wird bereits über updateTimerUI synchronisiert
-                } catch(e) { console.warn("Zuschauer-Fenster nicht erreichbar"); }
+                } catch(e) {}
             }
         }
         
         function speakText(text) { if(speechEnabled && window.speechSynthesis) { try{ window.speechSynthesis.cancel(); let u=new SpeechSynthesisUtterance(text); u.lang='de-DE'; u.rate=0.9; window.speechSynthesis.speak(u); }catch(e){} } }
         function showToast(msg) { let t=document.getElementById('dynamicToast'); if(!t){ t=document.createElement('div'); t.id='dynamicToast'; t.className='toast-msg'; document.body.appendChild(t); } t.innerText=msg; t.style.display='block'; setTimeout(()=>t.style.display='none',2200); }
         
+        // Punkte setzen (inkl. 0)
         function setPoints(team, kehreIdx, punkte) {
             if (overallWinner) { showToast("Spiel beendet"); return; }
-            if (punkte>=1 && punkte<=4) {
-                if (team==='A') teamAPunkte[kehreIdx]=punkte;
-                else teamBPunkte[kehreIdx]=punkte;
-                speakText(`${team==='A'?teamAName:teamBName} Kehre ${kehreIdx+1} ${punkte} Punkt${punkte!==1?'e':''}`);
+            if (punkte >= 0 && punkte <= 4) {
+                const currentVal = (team === 'A') ? teamAPunkte[kehreIdx] : teamBPunkte[kehreIdx];
+                if (currentVal === punkte) return; // nichts ändern
+                
+                if (team === 'A') teamAPunkte[kehreIdx] = punkte;
+                else teamBPunkte[kehreIdx] = punkte;
+                
+                // Sprachausgabe nur bei Punkten 1-4, bei 0 nur kurzer Hinweis
+                if (punkte > 0) {
+                    speakText(`${team==='A'?teamAName:teamBName} Kehre ${kehreIdx+1} ${punkte} Punkt${punkte!==1?'e':''}.`);
+                } else {
+                    speakText(`${team==='A'?teamAName:teamBName} Kehre ${kehreIdx+1} null Punkte.`);
+                }
+                
                 renderFullPanels();
                 updateAllDisplays();
-                let allFilled = teamAPunkte.every((v,i)=> v!==0 || teamBPunkte[i]!==0);
-                if (allFilled && !overallWinner) showToast(`Alle ${anzahlKehren} Kehren gespielt! Jetzt auswerten.`, 2500);
+                
+                // Automatischer Sprung zur nächsten Kehre, wenn beide Teams die aktuelle Kehre gespielt haben
+                if (isKehrePlayed(kehreIdx)) {
+                    let nextFree = -1;
+                    for (let i = kehreIdx + 1; i < anzahlKehren; i++) {
+                        if (!isKehrePlayed(i)) { nextFree = i; break; }
+                    }
+                    if (nextFree !== -1) {
+                        showToast(`⏩ Weiter zu Kehre ${nextFree+1}`);
+                    } else {
+                        if (allKehrenPlayed() && !overallWinner) {
+                            showToast(`🏁 Alle ${anzahlKehren} Kehren gespielt! Jetzt auswerten.`, 2500);
+                            speakText(`Alle Kehren gespielt. Bitte Spiel auswerten.`);
+                            updateAllDisplays(); // sorgt für Hinweis im Center
+                        }
+                    }
+                }
             }
         }
-        function deleteKehre(team, idx) { if(overallWinner) return; if(team==='A') teamAPunkte[idx]=0; else teamBPunkte[idx]=0; renderFullPanels(); updateAllDisplays(); showToast(`Kehre ${idx+1} gelöscht`); }
+        
+        function deleteKehre(team, idx) {
+            if (overallWinner) return;
+            if (team === 'A') teamAPunkte[idx] = null;
+            else teamBPunkte[idx] = null;
+            renderFullPanels();
+            updateAllDisplays();
+            showToast(`Kehre ${idx+1} gelöscht`);
+        }
         
         function awardGame(winner) {
             if(overallWinner) return;
@@ -452,7 +492,8 @@
                 updateAllDisplays();
                 return;
             }
-            for(let i=0;i<anzahlKehren;i++) { teamAPunkte[i]=0; teamBPunkte[i]=0; }
+            // Reset für neue Runde: alle Kehren auf null setzen
+            for(let i=0;i<anzahlKehren;i++) { teamAPunkte[i]=null; teamBPunkte[i]=null; }
             renderFullPanels();
             updateAllDisplays();
             speakText(`Neue Runde beginnt mit Kehre 1.`);
@@ -460,10 +501,11 @@
         
         function autoEvaluate() {
             if(overallWinner) { showToast("Spiel vorbei"); return; }
+            if (!allKehrenPlayed()) {
+                showToast(`Es sind noch nicht alle ${anzahlKehren} Kehren gespielt! Bitte alle Kehren (auch mit 0) ausfüllen.`);
+                return;
+            }
             const sumA = sum(teamAPunkte), sumB = sum(teamBPunkte);
-            const allFilled = teamAPunkte.every((v,i)=> v!==0 || teamBPunkte[i]!==0);
-            if(!allFilled && sumA===0 && sumB===0) { showToast("Keine Punkte"); return; }
-            if(!allFilled) { showToast(`Nicht alle ${anzahlKehren} Kehren gespielt!`); return; }
             if(sumA === sumB) {
                 if(confirm(`Unentschieden (${sumA}:${sumB}). Wer gewinnt das Spiel?`)) {
                     let winner = confirm(`Möchte ${teamAName} gewinnen? OK = ${teamAName}, Abbrechen = ${teamBName}`) ? 'A' : 'B';
@@ -475,13 +517,29 @@
             }
         }
         
-        function resetRound() { if(overallWinner) { showToast("Spiel beendet"); return; } for(let i=0;i<anzahlKehren;i++){ teamAPunkte[i]=0; teamBPunkte[i]=0; } renderFullPanels(); updateAllDisplays(); showToast("Runde gelöscht"); speakText("Runde gelöscht"); }
-        function newGame() { if(confirm("Komplettreset?")) { for(let i=0;i<anzahlKehren;i++){ teamAPunkte[i]=0; teamBPunkte[i]=0; } gamesWonA=0; gamesWonB=0; overallWinner=false; resetTimer(); renderFullPanels(); updateAllDisplays(); showToast("Neues Spiel"); speakText("Neues Spiel"); } }
-        function resetScoresOnly() { if(confirm("Nur Siege zurücksetzen?")) { gamesWonA=0; gamesWonB=0; overallWinner=false; updateAllDisplays(); showToast("Siege zurückgesetzt"); } }
+        function resetRound() {
+            if(overallWinner) { showToast("Spiel beendet"); return; }
+            for(let i=0;i<anzahlKehren;i++){ teamAPunkte[i]=null; teamBPunkte[i]=null; }
+            renderFullPanels(); updateAllDisplays(); showToast("Runde gelöscht"); speakText("Runde gelöscht");
+        }
+        function newGame() {
+            if(confirm("Komplettreset?")) {
+                for(let i=0;i<anzahlKehren;i++){ teamAPunkte[i]=null; teamBPunkte[i]=null; }
+                gamesWonA=0; gamesWonB=0; overallWinner=false;
+                resetTimer(); renderFullPanels(); updateAllDisplays(); showToast("Neues Spiel"); speakText("Neues Spiel");
+            }
+        }
+        function resetScoresOnly() {
+            if(confirm("Nur Siege zurücksetzen?")) { gamesWonA=0; gamesWonB=0; overallWinner=false; updateAllDisplays(); showToast("Siege zurückgesetzt"); }
+        }
         
         function changeKehrenAnzahl(neu) {
-            let neueA = new Array(neu).fill(0), neueB = new Array(neu).fill(0);
-            for(let i=0;i<Math.min(teamAPunkte.length,neu);i++) { neueA[i]=teamAPunkte[i]; neueB[i]=teamBPunkte[i]; }
+            let neueA = new Array(neu).fill(null);
+            let neueB = new Array(neu).fill(null);
+            for(let i=0;i<Math.min(teamAPunkte.length,neu);i++) {
+                neueA[i] = teamAPunkte[i];
+                neueB[i] = teamBPunkte[i];
+            }
             teamAPunkte = neueA; teamBPunkte = neueB; anzahlKehren = neu;
             renderFullPanels(); updateAllDisplays(); showToast(`Kehren: ${neu}`);
         }
@@ -491,7 +549,17 @@
             leftPanel.innerHTML = '';
             for(let i=0;i<anzahlKehren;i++) {
                 let row = document.createElement('div'); row.className='kehre-row';
-                row.innerHTML = `<div class="kehre-nr">${i+1}</div><div class="punkte-group"><button class="side-punkt" data-val="1">1</button><button class="side-punkt" data-val="2">2</button><button class="side-punkt" data-val="3">3</button><button class="side-punkt" data-val="4">4</button><span class="side-value">${teamAPunkte[i]||0}</span><button class="side-del">🗑️</button></div>`;
+                let currentValA = (teamAPunkte[i] !== null) ? teamAPunkte[i] : '-';
+                let displayValA = (teamAPunkte[i] !== null) ? teamAPunkte[i] : '';
+                row.innerHTML = `<div class="kehre-nr">${i+1}</div><div class="punkte-group">
+                    <button class="side-punkt" data-val="0">0</button>
+                    <button class="side-punkt" data-val="1">1</button>
+                    <button class="side-punkt" data-val="2">2</button>
+                    <button class="side-punkt" data-val="3">3</button>
+                    <button class="side-punkt" data-val="4">4</button>
+                    <span class="side-value">${displayValA === '' ? '-' : displayValA}</span>
+                    <button class="side-del">🗑️</button>
+                </div>`;
                 row.querySelectorAll('.side-punkt').forEach(btn=>btn.addEventListener('click',()=>setPoints('A',i,parseInt(btn.dataset.val))));
                 row.querySelector('.side-del').addEventListener('click',()=>deleteKehre('A',i));
                 leftPanel.appendChild(row);
@@ -500,7 +568,16 @@
             rightPanel.innerHTML = '';
             for(let i=0;i<anzahlKehren;i++) {
                 let row = document.createElement('div'); row.className='kehre-row';
-                row.innerHTML = `<div class="kehre-nr">${i+1}</div><div class="punkte-group"><button class="side-punkt" data-val="1">1</button><button class="side-punkt" data-val="2">2</button><button class="side-punkt" data-val="3">3</button><button class="side-punkt" data-val="4">4</button><span class="side-value">${teamBPunkte[i]||0}</span><button class="side-del">🗑️</button></div>`;
+                let displayValB = (teamBPunkte[i] !== null) ? teamBPunkte[i] : '';
+                row.innerHTML = `<div class="kehre-nr">${i+1}</div><div class="punkte-group">
+                    <button class="side-punkt" data-val="0">0</button>
+                    <button class="side-punkt" data-val="1">1</button>
+                    <button class="side-punkt" data-val="2">2</button>
+                    <button class="side-punkt" data-val="3">3</button>
+                    <button class="side-punkt" data-val="4">4</button>
+                    <span class="side-value">${displayValB === '' ? '-' : displayValB}</span>
+                    <button class="side-del">🗑️</button>
+                </div>`;
                 row.querySelectorAll('.side-punkt').forEach(btn=>btn.addEventListener('click',()=>setPoints('B',i,parseInt(btn.dataset.val))));
                 row.querySelector('.side-del').addEventListener('click',()=>deleteKehre('B',i));
                 rightPanel.appendChild(row);
@@ -522,199 +599,59 @@
             else if(!(gamesWonA>=target || gamesWonB>=target)) { overallWinner=false; updateAllDisplays(); }
         }
         
-        // Zuschauer-Fenster öffnen (NEU: separates Fenster, Steuerung bleibt aktiv)
         function openSpectatorWindow() {
-            // Falls schon offen, Fenster in den Fokus bringen
-            if (spectatorWindow && !spectatorWindow.closed) {
-                spectatorWindow.focus();
-                return;
-            }
-            // HTML-Code für das Zuschauer-Fenster (komplett eigenständig)
+            if (spectatorWindow && !spectatorWindow.closed) { spectatorWindow.focus(); return; }
             const spectatorHTML = `<!DOCTYPE html>
-            <html lang="de">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>ESV Grein · Zuschauer-Monitor</title>
-                <style>
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body {
-                        background: linear-gradient(145deg, #0f2e1a 0%, #091f0e 100%);
-                        min-height: 100vh;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-family: 'Segoe UI', system-ui;
-                        padding: 20px;
-                    }
-                    .spectator-card {
-                        max-width: 1200px;
-                        width: 95%;
-                        background: #fefcf5;
-                        border-radius: 80px;
-                        padding: 40px 50px;
-                        box-shadow: 0 30px 50px rgba(0,0,0,0.4);
-                        text-align: center;
-                    }
-                    .spectator-header {
-                        font-size: 2rem;
-                        font-weight: 800;
-                        color: #1b4d1b;
-                        margin-bottom: 30px;
-                        background: #eef5e9;
-                        display: inline-block;
-                        padding: 8px 40px;
-                        border-radius: 80px;
-                    }
-                    .spectator-teams {
-                        display: flex;
-                        gap: 50px;
-                        justify-content: center;
-                        margin: 30px 0;
-                        flex-wrap: wrap;
-                    }
-                    .spectator-team {
-                        flex: 1;
-                        min-width: 250px;
-                        background: #fafef5;
-                        border-radius: 60px;
-                        padding: 30px 20px;
-                        border-bottom: 8px solid;
-                    }
-                    .spectator-team-name {
-                        font-size: 2.5rem;
-                        font-weight: 900;
-                        margin-bottom: 20px;
-                    }
-                    .spectator-kehren-summe {
-                        font-size: 6rem;
-                        font-weight: 900;
-                        background: #ecf7e5;
-                        border-radius: 80px;
-                        padding: 20px;
-                        margin: 20px 0;
-                    }
-                    .spectator-games {
-                        font-size: 1.5rem;
-                        background: #e9f2e2;
-                        border-radius: 60px;
-                        padding: 15px;
-                    }
-                    .spectator-games-number {
-                        font-size: 3rem;
-                        font-weight: 800;
-                        background: #1b4d1b;
-                        color: white;
-                        display: inline-block;
-                        padding: 8px 30px;
-                        border-radius: 70px;
-                        margin-top: 10px;
-                    }
-                    .spectator-kehre {
-                        margin-top: 30px;
-                        font-size: 1.8rem;
-                        background: #eef3e4;
-                        display: inline-block;
-                        padding: 15px 40px;
-                        border-radius: 80px;
-                    }
-                    .spectator-timer {
-                        margin-top: 20px;
-                        font-size: 2rem;
-                        font-family: monospace;
-                        background: #1e2a1e;
-                        color: #f5ffd3;
-                        display: inline-block;
-                        padding: 10px 35px;
-                        border-radius: 70px;
-                    }
-                    .winner-msg {
-                        margin-top: 20px;
-                        font-weight: bold;
-                        font-size: 1.5rem;
-                        background: #ffecb3;
-                        display: inline-block;
-                        padding: 10px 30px;
-                        border-radius: 60px;
-                    }
-                    @media (max-width: 700px) {
-                        .spectator-card { padding: 20px; }
-                        .spectator-team-name { font-size: 1.5rem; }
-                        .spectator-kehren-summe { font-size: 3rem; }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="spectator-card">
-                    <div class="spectator-header">🥌 ESV Grein 🥌</div>
-                    <div class="spectator-teams">
-                        <div class="spectator-team" style="border-bottom-color: #2c7a4d;">
-                            <div class="spectator-team-name" id="specTeamA">Mannschaft W</div>
-                            <div class="spectator-kehren-summe" id="specSumA">0</div>
-                            <div class="spectator-games">🏆 Spiele gewonnen<br><span class="spectator-games-number" id="specGamesA">0</span></div>
-                        </div>
-                        <div class="spectator-team" style="border-bottom-color: #c0392b;">
-                            <div class="spectator-team-name" id="specTeamB">Mannschaft E</div>
-                            <div class="spectator-kehren-summe" id="specSumB">0</div>
-                            <div class="spectator-games">🏆 Spiele gewonnen<br><span class="spectator-games-number" id="specGamesB">0</span></div>
-                        </div>
-                    </div>
-                    <div class="spectator-kehre" id="specKehre">Aktuelle Kehre: 1</div>
-                    <div class="spectator-timer" id="specTimer">00:00:00</div>
-                    <div id="specWinnerMsg" class="winner-msg" style="display: none;"></div>
-                </div>
-                <script>
-                    // Funktionen, die vom Hauptfenster aufgerufen werden
-                    window.updateSpectatorData = function(data) {
-                        document.getElementById('specTeamA').innerText = data.teamA;
-                        document.getElementById('specTeamB').innerText = data.teamB;
-                        document.getElementById('specSumA').innerText = data.sumA;
-                        document.getElementById('specSumB').innerText = data.sumB;
-                        document.getElementById('specGamesA').innerText = data.gamesA;
-                        document.getElementById('specGamesB').innerText = data.gamesB;
-                        document.getElementById('specKehre').innerHTML = data.overallWinner ? "🏆 SPIEL BEENDET 🏆" : "Aktuelle Kehre: " + data.currentKehre;
-                        if (data.overallWinner && data.winnerName) {
-                            const winnerDiv = document.getElementById('specWinnerMsg');
-                            winnerDiv.innerText = "🏆🏆🏆 " + data.winnerName + " GESAMTSIEGER (" + data.required + " Siege) 🏆🏆🏆";
-                            winnerDiv.style.display = "inline-block";
-                        } else {
-                            document.getElementById('specWinnerMsg').style.display = "none";
-                        }
-                    };
-                    window.updateSpectatorTimer = function(timeStr) {
-                        document.getElementById('specTimer').innerText = timeStr;
-                    };
-                <\/script>
-            </body>
-            </html>`;
-            
-            // Neues Fenster öffnen
+            <html><head><meta charset="UTF-8"><title>ESV Grein · Zuschauer</title><style>
+                *{margin:0;padding:0;box-sizing:border-box} body{background:linear-gradient(145deg,#0f2e1a,#091f0e);min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',system-ui;padding:20px}
+                .card{max-width:1200px;width:95%;background:#fefcf5;border-radius:80px;padding:40px 50px;text-align:center;box-shadow:0 30px 50px rgba(0,0,0,0.4)}
+                h2{font-size:2rem;color:#1b4d1b;background:#eef5e9;display:inline-block;padding:8px 40px;border-radius:80px;margin-bottom:30px}
+                .teams{display:flex;gap:50px;justify-content:center;margin:30px 0;flex-wrap:wrap}
+                .team{flex:1;min-width:250px;background:#fafef5;border-radius:60px;padding:30px 20px;border-bottom:8px solid}
+                .team-name{font-size:2.5rem;font-weight:900;margin-bottom:20px}
+                .sum{font-size:6rem;font-weight:900;background:#ecf7e5;border-radius:80px;padding:20px;margin:20px 0}
+                .games{font-size:1.5rem;background:#e9f2e2;border-radius:60px;padding:15px}
+                .games-num{font-size:3rem;font-weight:800;background:#1b4d1b;color:white;display:inline-block;padding:8px 30px;border-radius:70px;margin-top:10px}
+                .kehre{margin-top:30px;font-size:1.8rem;background:#eef3e4;display:inline-block;padding:15px 40px;border-radius:80px}
+                .timer{margin-top:20px;font-size:2rem;font-family:monospace;background:#1e2a1e;color:#f5ffd3;display:inline-block;padding:10px 35px;border-radius:70px}
+                .winner{margin-top:20px;font-size:1.5rem;background:#ffecb3;display:inline-block;padding:10px 30px;border-radius:60px}
+            </style></head><body>
+            <div class="card"><h2>🥌 ESV Grein 🥌</h2>
+            <div class="teams"><div class="team" style="border-bottom-color:#2c7a4d;"><div class="team-name" id="specTeamA">-</div><div class="sum" id="specSumA">0</div><div class="games">🏆 Spiele gewonnen<br><span class="games-num" id="specGamesA">0</span></div></div>
+            <div class="team" style="border-bottom-color:#c0392b;"><div class="team-name" id="specTeamB">-</div><div class="sum" id="specSumB">0</div><div class="games">🏆 Spiele gewonnen<br><span class="games-num" id="specGamesB">0</span></div></div></div>
+            <div class="kehre" id="specKehre">Kehre 1</div><div class="timer" id="specTimer">00:00:00</div><div id="specWinnerMsg" class="winner" style="display:none"></div></div>
+            <script>
+                window.updateSpectatorData = function(d){
+                    document.getElementById('specTeamA').innerText = d.teamA; document.getElementById('specTeamB').innerText = d.teamB;
+                    document.getElementById('specSumA').innerText = d.sumA; document.getElementById('specSumB').innerText = d.sumB;
+                    document.getElementById('specGamesA').innerText = d.gamesA; document.getElementById('specGamesB').innerText = d.gamesB;
+                    document.getElementById('specKehre').innerHTML = d.overallWinner ? "🏆 SPIEL BEENDET 🏆" : "Aktuelle Kehre: " + d.currentKehre;
+                    if(d.overallWinner && d.winnerName){
+                        let w = document.getElementById('specWinnerMsg');
+                        w.innerText = "🏆🏆🏆 " + d.winnerName + " GESAMTSIEGER (" + d.required + " Siege) 🏆🏆🏆";
+                        w.style.display = "inline-block";
+                    } else { document.getElementById('specWinnerMsg').style.display = "none"; }
+                };
+                window.updateSpectatorTimer = function(t){ document.getElementById('specTimer').innerText = t; };
+            <\/script></body></html>`;
             spectatorWindow = window.open("", "SpectatorMonitor", "width=1280,height=720,resizable=yes,scrollbars=yes");
             if (spectatorWindow) {
                 spectatorWindow.document.write(spectatorHTML);
                 spectatorWindow.document.close();
-                // Initiale Daten senden
                 setTimeout(() => {
                     if (spectatorWindow && !spectatorWindow.closed) {
                         const sumA = sum(teamAPunkte), sumB = sum(teamBPunkte);
                         spectatorWindow.updateSpectatorData({
-                            teamA: teamAName,
-                            teamB: teamBName,
-                            sumA: sumA,
-                            sumB: sumB,
-                            gamesA: gamesWonA,
-                            gamesB: gamesWonB,
+                            teamA: teamAName, teamB: teamBName, sumA, sumB,
+                            gamesA: gamesWonA, gamesB: gamesWonB,
                             currentKehre: overallWinner ? "🏆" : getCurrentKehreNum(),
-                            overallWinner: overallWinner,
-                            winnerName: overallWinner ? (gamesWonA >= requiredGamesToWin ? teamAName : teamBName) : null,
+                            overallWinner, winnerName: overallWinner ? (gamesWonA >= requiredGamesToWin ? teamAName : teamBName) : null,
                             required: requiredGamesToWin
                         });
-                        updateTimerUI(); // Timer wird ebenfalls synchronisiert
+                        updateTimerUI();
                     }
                 }, 100);
-            } else {
-                alert("Bitte erlauben Sie Pop-up-Fenster für diesen Button, damit der Zuschauer-Monitor geöffnet werden kann.");
-            }
+            } else { alert("Bitte Pop-ups erlauben für den Zuschauer-Monitor."); }
         }
         
         // Event Bindings
@@ -732,7 +669,7 @@
         document.querySelectorAll('.win-option-btn').forEach(btn=>btn.addEventListener('click',()=>setRequiredGames(parseInt(btn.dataset.target))));
         
         function init() {
-            anzahlKehren=6; teamAPunkte=new Array(6).fill(0); teamBPunkte=new Array(6).fill(0);
+            anzahlKehren=6; teamAPunkte=new Array(6).fill(null); teamBPunkte=new Array(6).fill(null);
             gamesWonA=0; gamesWonB=0; overallWinner=false; requiredGamesToWin=2;
             teamAName="Mannschaft W"; teamBName="Mannschaft E";
             document.getElementById('teamANameSide').value=teamAName; document.getElementById('teamBNameSide').value=teamBName;
