@@ -1,681 +1,934 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>ESV Grein | Steuerung + Zuschauer-Fenster (mit 0-Punkte)</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
-            background: #0a2b14;
-            min-height: 100vh;
-        }
-        .control-view {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: #fefcf5;
-            box-shadow: 0 0 20px rgba(0,0,0,0.2);
-            min-height: 100vh;
-        }
-        .top-bar {
-            background: white;
-            padding: 8px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            border-bottom: 2px solid #deecd2;
-        }
-        h1 { font-size: 1.2rem; background: #eef5e9; padding: 4px 16px; border-radius: 60px; color: #1b4d1b; }
-        .settings-group {
-            display: flex;
-            gap: 12px;
-            background: #f6faf3;
-            padding: 5px 20px;
-            border-radius: 60px;
-            flex-wrap: wrap;
-        }
-        .team-name-input {
-            border: 1px solid #c2d6b8;
-            border-radius: 30px;
-            padding: 5px 10px;
-            width: 120px;
-            text-align: center;
-            font-size: 0.8rem;
-        }
-        .kehren-select, .apply-btn {
-            padding: 5px 12px;
-            border-radius: 40px;
-            border: 1px solid #bbd4ae;
-            background: white;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .apply-btn { background: #2d6a4f; color: white; }
-        .speech-toggle { display: flex; align-items: center; gap: 6px; background: #eef3ea; padding: 4px 15px; border-radius: 40px; font-size: 0.75rem; }
-        .compact-timer {
-            background: #1e2a1e;
-            border-radius: 60px;
-            padding: 4px 18px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .compact-timer-digits {
-            font-family: monospace;
-            font-size: 1.3rem;
-            font-weight: 800;
-            color: #f5ffd3;
-            background: #00000030;
-            padding: 2px 8px;
-            border-radius: 40px;
-        }
-        .compact-timer-btn {
-            background: #eef3ea;
-            border: none;
-            border-radius: 40px;
-            padding: 2px 12px;
-            font-size: 0.6rem;
-            cursor: pointer;
-        }
-        .open-spectator-btn {
-            background: #1f5e3a;
-            color: white;
-            border: none;
-            border-radius: 40px;
-            padding: 4px 16px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .dashboard-control {
-            display: grid;
-            grid-template-columns: 260px 1fr 260px;
-            gap: 0;
-            background: #fefcf5;
-        }
-        .input-left, .input-right {
-            background: #fafdf8;
-            padding: 12px 8px;
-            overflow-y: auto;
-            max-height: calc(100vh - 180px);
-        }
-        .input-left { border-right: 2px solid #dae9ce; }
-        .input-right { border-left: 2px solid #dae9ce; }
-        .team-header {
-            font-size: 1rem;
-            font-weight: 800;
-            text-align: center;
-            background: #eef3ea;
-            border-radius: 40px;
-            padding: 6px;
-            margin-bottom: 12px;
-        }
-        .kehren-grid-side {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .kehre-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: white;
-            padding: 4px 10px;
-            border-radius: 40px;
-            border: 1px solid #e0ecd6;
-        }
-        .kehre-row.current-kehre-bg { background: #c8e6c9 !important; border-left: 4px solid #2e7d32; }
-        .kehre-row.played-kehre-bg { background: #ffcdd2 !important; border-left: 4px solid #c62828; }
-        .kehre-nr { font-weight: 800; width: 42px; font-size: 0.7rem; }
-        .punkte-group { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
-        .side-punkt {
-            min-width: 38px;
-            background: white;
-            border: 2px solid #cbdfc1;
-            border-radius: 30px;
-            font-weight: 800;
-            cursor: pointer;
-            padding: 5px 0;
-        }
-        .side-punkt.zero-btn { background: #f0e6d2; border-color: #d4c5a3; }
-        .side-value {
-            background: #2c7a4d;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 30px;
-            min-width: 42px;
-            text-align: center;
-        }
-        .side-del {
-            background: #fef1ec;
-            border: 1px solid #efcdc2;
-            border-radius: 30px;
-            width: 34px;
-            cursor: pointer;
-        }
-        .center-control {
-            background: white;
-            padding: 20px;
-        }
-        .games-to-win-panel {
-            background: #f3f9ef;
-            border-radius: 60px;
-            padding: 8px 20px;
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .win-option-btn {
-            background: white;
-            border: 2px solid #bbd4ae;
-            border-radius: 60px;
-            padding: 5px 16px;
-            font-weight: 800;
-            cursor: pointer;
-        }
-        .win-option-btn.active-win-option { background: #2d6a4f; color: white; }
-        .result-mega {
-            display: flex;
-            gap: 30px;
-            margin: 15px 0;
-        }
-        .result-card {
-            flex: 1;
-            background: #fafef5;
-            border-radius: 40px;
-            padding: 20px;
-            text-align: center;
-            border: 1px solid #e2efda;
-        }
-        .result-team { font-size: 1.8rem; font-weight: 900; }
-        .current-round { font-size: 3.5rem; font-weight: 900; color: #1c691c; background: #ecf7e5; border-radius: 70px; margin: 15px 0; }
-        .games-number { font-size: 2rem; font-weight: 800; background: #1b4d1b; color: white; display: inline-block; padding: 4px 20px; border-radius: 50px; }
-        .current-kehre-center { text-align: center; background: #eef3e4; border-radius: 60px; padding: 8px 20px; display: inline-block; width: auto; margin-top: 10px; }
-        .action-footer {
-            background: white;
-            border-top: 2px solid #dae8d0;
-            padding: 10px 20px;
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-        .action-btn {
-            background: #f0f5eb;
-            border: none;
-            padding: 6px 22px;
-            border-radius: 60px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-        .action-win { background: #ffdf8c; }
-        .action-new { background: #1e5a2e; color: white; }
-        .toast-msg {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #1a472a;
-            color: white;
-            padding: 6px 18px;
-            border-radius: 50px;
-            z-index: 5000;
-            pointer-events: none;
-        }
-        body.game-finished .side-punkt,
-        body.game-finished .side-del { opacity: 0.5; pointer-events: none; }
-        @media (max-width: 800px) {
-            .dashboard-control { grid-template-columns: 1fr; }
-            .input-left, .input-right { max-height: unset; }
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ESV Grein – Tuniersteuerung (2-5 Spiele)</title>
+
+<style>
+:root{
+    --green:#1f5e3a;
+    --green-light:#eef5e9;
+    --dark:#102417;
+    --red:#b93a32;
+    --gold:#ffdf8c;
+    --border:#d7e4cf;
+    --bg:#f6f9f3;
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:Segoe UI,Arial,sans-serif;
+    background:linear-gradient(135deg,#17351f,#0d1f13);
+    color:#222;
+    min-height:100vh;
+}
+
+.container{
+    width:min(1800px,96vw);
+    margin:20px auto;
+    background:white;
+    border-radius:22px;
+    overflow:hidden;
+    box-shadow:0 20px 50px rgba(0,0,0,.35);
+}
+
+.topbar{
+    background:var(--green);
+    color:white;
+    padding:18px 24px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:20px;
+    flex-wrap:wrap;
+}
+
+.title{
+    font-size:2rem;
+    font-weight:900;
+}
+
+.controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    align-items:center;
+}
+
+input,select,button{
+    border:none;
+    border-radius:12px;
+    padding:10px 14px;
+    font-size:1rem;
+}
+
+input,select{
+    background:white;
+}
+
+button{
+    background:var(--green);
+    color:white;
+    cursor:pointer;
+    transition:.2s;
+    font-weight:700;
+}
+
+button:hover{
+    transform:translateY(-1px);
+    filter:brightness(1.05);
+}
+
+.layout{
+    display:grid;
+    grid-template-columns:360px 1fr 360px;
+    min-height:calc(100vh - 140px);
+}
+
+.panel{
+    background:var(--bg);
+    padding:20px;
+    border-right:1px solid var(--border);
+}
+
+.panel:last-child{
+    border-right:none;
+    border-left:1px solid var(--border);
+}
+
+.teamTitle{
+    text-align:center;
+    font-size:1.5rem;
+    font-weight:900;
+    margin-bottom:18px;
+    background:var(--green-light);
+    padding:14px;
+    border-radius:14px;
+}
+
+.kehreRow{
+    display:grid;
+    grid-template-columns:50px 1fr 50px;
+    gap:10px;
+    align-items:center;
+    background:white;
+    padding:10px;
+    border-radius:14px;
+    margin-bottom:10px;
+    border:1px solid var(--border);
+}
+
+.kehreRow.active{
+    border:3px solid #4caf50;
+    background:#f3fff2;
+}
+
+.kehreNr{
+    font-weight:900;
+    text-align:center;
+    font-size:1.1rem;
+}
+
+.points{
+    display:flex;
+    gap:8px;
+    justify-content:center;
+    flex-wrap:wrap;
+}
+
+.pointBtn{
+    min-width:44px;
+    padding:10px 0;
+    background:white;
+    color:#222;
+    border:2px solid var(--border);
+    font-weight:900;
+}
+
+.pointBtn:hover{
+    background:var(--green);
+    color:white;
+}
+
+.valueBox{
+    text-align:center;
+    font-size:1.4rem;
+    font-weight:900;
+    color:var(--green);
+}
+
+.center{
+    padding:30px;
+    background:white;
+}
+
+.scoreboard{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:30px;
+}
+
+.scoreCard{
+    border-radius:24px;
+    padding:30px;
+    background:var(--bg);
+    text-align:center;
+    border-bottom:10px solid var(--green);
+}
+
+.scoreCard.red{
+    border-bottom-color:var(--red);
+}
+
+.bigName{
+    font-size:2.2rem;
+    font-weight:900;
+    margin-bottom:20px;
+}
+
+.bigScore{
+    font-size:8rem;
+    font-weight:900;
+    line-height:1;
+    color:var(--green);
+}
+
+.games{
+    margin-top:20px;
+    font-size:1.2rem;
+}
+
+.games span{
+    display:inline-block;
+    margin-top:10px;
+    background:var(--dark);
+    color:white;
+    padding:10px 28px;
+    border-radius:14px;
+    font-size:2rem;
+    font-weight:900;
+}
+
+.infoBar{
+    margin-top:30px;
+    display:flex;
+    justify-content:center;
+    gap:20px;
+    flex-wrap:wrap;
+}
+
+.infoBox{
+    background:var(--green-light);
+    padding:16px 30px;
+    border-radius:16px;
+    font-size:1.3rem;
+    font-weight:800;
+}
+
+.timer{
+    font-family:monospace;
+    background:#111;
+    color:#c9ffaf;
+}
+
+.footer{
+    display:flex;
+    justify-content:center;
+    gap:15px;
+    padding:20px;
+    border-top:1px solid var(--border);
+    flex-wrap:wrap;
+}
+
+.footer button{
+    min-width:180px;
+    font-size:1rem;
+}
+
+.gold{
+    background:var(--gold);
+    color:black;
+}
+
+.redBtn{
+    background:var(--red);
+}
+
+.toast{
+    position:fixed;
+    bottom:30px;
+    left:50%;
+    transform:translateX(-50%);
+    background:#111;
+    color:white;
+    padding:14px 24px;
+    border-radius:14px;
+    font-weight:700;
+    opacity:0;
+    transition:.3s;
+    pointer-events:none;
+}
+
+.toast.show{
+    opacity:1;
+}
+
+@media(max-width:1200px){
+    .layout{
+        grid-template-columns:1fr;
+    }
+
+    .panel{
+        border:none;
+    }
+
+    .scoreboard{
+        grid-template-columns:1fr;
+    }
+
+    .bigScore{
+        font-size:5rem;
+    }
+}
+
+@media print{
+    body{
+        background:white;
+    }
+
+    .topbar,
+    .footer,
+    .panel{
+        display:none;
+    }
+
+    .container{
+        width:100%;
+        margin:0;
+        box-shadow:none;
+    }
+
+    .layout{
+        grid-template-columns:1fr;
+    }
+}
+</style>
 </head>
 <body>
-    <div id="controlView" class="control-view">
-        <div class="top-bar">
-            <h1>🥌 ESV Grein · Steuerung (mit 0-Punkte) 🥌</h1>
-            <div class="settings-group">
-                <input type="text" id="teamANameSide" class="team-name-input" value="Mannschaft W">
-                <span>🆚</span>
-                <input type="text" id="teamBNameSide" class="team-name-input" value="Mannschaft E">
-                <select id="kehrenSelectSide"><option value="4">4</option><option value="6" selected>6</option><option value="8">8</option><option value="10">10</option><option value="12">12</option></select>
-                <button id="applyKehrenSide" class="apply-btn">Übernehmen</button>
-                <div class="speech-toggle"><input type="checkbox" id="speechToggleSide" checked><label>🔊 Sprachansage</label></div>
-            </div>
-            <div class="compact-timer">
-                <span class="compact-timer-digits" id="timerDisplayCompact">00:00:00</span>
-                <button class="compact-timer-btn" id="timerResetCompactBtn">Reset</button>
-                <button class="compact-timer-btn" id="timerPauseCompactBtn">Pause</button>
-                <button id="openSpectatorBtn" class="open-spectator-btn">📺 Zuschauer-Monitor öffnen</button>
-            </div>
-        </div>
 
-        <div class="dashboard-control">
-            <div class="input-left">
-                <div class="team-header"><span>🥌</span> <span id="leftTeamName">Mannschaft W</span></div>
-                <div id="leftKehrenPanel" class="kehren-grid-side"></div>
-                <div style="text-align:center; font-size:9px; margin-top:12px;">0-4 Punkte pro Kehre</div>
-            </div>
+<div class="container">
 
-            <div class="center-control">
-                <div class="games-to-win-panel">
-                    <span>🏆 Zum Gesamtsieg nötig:</span>
-                    <button data-target="2" class="win-option-btn active-win-option">2 Siege</button>
-                    <button data-target="3" class="win-option-btn">3 Siege</button>
-                    <button data-target="4" class="win-option-btn">4 Siege</button>
-                    <button data-target="5" class="win-option-btn">5 Siege</button>
-                    <button id="autoEvaluateGameBtn" class="apply-btn" style="background:#1f5e3a;">⚡ Spiel automatisch werten</button>
-                </div>
-                <div class="result-mega">
-                    <div class="result-card" style="border-bottom: 6px solid #2c7a4d;">
-                        <div class="result-team"><span id="centerTeamA">Mannschaft W</span></div>
-                        <div class="current-round" id="centerRoundA">0</div>
-                        <div>🏆 GEWONNENE SPIELE 🏆<br><span class="games-number" id="centerGamesA">0</span><span id="stampA" style="margin-left:10px;"></span></div>
-                    </div>
-                    <div class="result-card" style="border-bottom: 6px solid #c0392b;">
-                        <div class="result-team"><span id="centerTeamB">Mannschaft E</span></div>
-                        <div class="current-round" id="centerRoundB">0</div>
-                        <div>🏆 GEWONNENE SPIELE 🏆<br><span class="games-number" id="centerGamesB">0</span><span id="stampB" style="margin-left:10px;"></span></div>
-                    </div>
-                </div>
-                <div style="text-align:center;">
-                    <div class="current-kehre-center">🟢 AKTUELLE KEHRE <strong id="currentKehreDisplay">1</strong></div>
-                </div>
-                <div id="globalWinnerMsg" style="margin-top: 12px; text-align: center;"></div>
-            </div>
+    <div class="topbar">
+        <div class="title">🥌 ESV Grein – Ligaspiel</div>
 
-            <div class="input-right">
-                <div class="team-header"><span id="rightTeamName">Mannschaft E</span> <span>🥌</span></div>
-                <div id="rightKehrenPanel" class="kehren-grid-side"></div>
-                <div style="text-align:center; font-size:9px; margin-top:12px;">0-4 Punkte pro Kehre</div>
-            </div>
-        </div>
+        <div class="controls">
+            <input id="teamAInput" value="Mannschaft W">
+            <span>VS</span>
+            <input id="teamBInput" value="Mannschaft E">
 
-        <div class="action-footer">
-            <button class="action-btn action-win" id="winGameBtn">🏆 Spiel gewinnen</button>
-            <button class="action-btn" id="resetRoundBtn">🔄 Runde löschen</button>
-            <button class="action-btn action-new" id="newGameBtn">✨ Neues Spiel</button>
-            <button class="action-btn" id="resetTotalBtn">🗑️ Gesamtwertung</button>
-            <button class="action-btn" id="printPDFBtn">🖨️ Drucken</button>
+            <select id="kehrenSelect">
+                <option>4</option>
+                <option selected>6</option>
+                <option>8</option>
+                <option>10</option>
+                <option>12</option>
+            </select>
+
+            <!-- Auswahl der Anzahl der Spiele: 2 bis 5 -->
+            <select id="gamesCountSelect">
+                <option value="2">2 Spiele</option>
+                <option value="3">3 Spiele</option>
+                <option value="4">4 Spiele</option>
+                <option value="5" selected>5 Spiele</option>
+            </select>
+
+            <button onclick="openSpectatorWindow()">📺 Zuschauer-Monitor</button>
+            <button onclick="fullReset()">Neues Turnier</button>
         </div>
     </div>
 
+    <div class="layout">
+
+        <div class="panel">
+            <div class="teamTitle" id="leftTitle">Mannschaft W</div>
+            <div id="leftPanel"></div>
+        </div>
+
+        <div class="center">
+
+            <div class="scoreboard">
+
+                <div class="scoreCard">
+                    <div class="bigName" id="centerNameA">Mannschaft W</div>
+                    <div class="bigScore" id="scoreA">0</div>
+                    <div class="games">
+                        Spielstand <br>
+                        <span id="gamesA">0</span>
+                    </div>
+                </div>
+
+                <div class="scoreCard red">
+                    <div class="bigName" id="centerNameB">Mannschaft E</div>
+                    <div class="bigScore" id="scoreB">0</div>
+                    <div class="games">
+                        Spielstand <br>
+                        <span id="gamesB">0</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="infoBar">
+                <div class="infoBox">Aktuelle Kehre: <span id="currentKehre">1</span></div>
+                <div class="infoBox timer" id="timer">00:00:00</div>
+                <div class="infoBox">Spiele gesamt: <span id="totalGamesDisplay">5</span></div>
+                <div class="infoBox">Punktestand (nach Spielen)</div>
+            </div>
+
+            <div id="winnerMessage" style="text-align:center;margin-top:35px;font-size:2rem;font-weight:900;color:var(--green)"></div>
+
+        </div>
+
+        <div class="panel">
+            <div class="teamTitle" id="rightTitle">Mannschaft E</div>
+            <div id="rightPanel"></div>
+        </div>
+
+    </div>
+
+    <div class="footer">
+        <button class="gold" onclick="evaluateGame()">🏆 Spiel werten (2/1/0)</button>
+        <button onclick="resetRound()">🔄 Kehren löschen (akt. Spiel)</button>
+        <button class="redBtn" onclick="window.print()">🖨️ Drucken</button>
+    </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let spectatorWindow = null;
+
+function openSpectatorWindow(){
+    if(spectatorWindow && !spectatorWindow.closed){
+        spectatorWindow.focus();
+        return;
+    }
+    const spectatorHTML = `
+    <!DOCTYPE html>
+    <html lang="de">
+    <head>
+    <meta charset="UTF-8">
+    <title>Zuschauer Monitor</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{
+            background:linear-gradient(135deg,#102417,#08150d);
+            color:white;
+            font-family:Segoe UI,Arial,sans-serif;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            min-height:100vh;
+            padding:40px;
+        }
+        .board{
+            width:100%;
+            max-width:1600px;
+            background:white;
+            color:#111;
+            border-radius:40px;
+            padding:50px;
+            box-shadow:0 20px 60px rgba(0,0,0,.5);
+        }
+        .title{
+            text-align:center;
+            font-size:3rem;
+            font-weight:900;
+            margin-bottom:40px;
+            color:#1f5e3a;
+        }
+        .teams{
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:40px;
+        }
+        .team{
+            background:#f5f8f3;
+            border-radius:30px;
+            padding:40px;
+            text-align:center;
+            border-bottom:14px solid #1f5e3a;
+        }
+        .team.red{
+            border-bottom-color:#b93a32;
+        }
+        .name{
+            font-size:3rem;
+            font-weight:900;
+            margin-bottom:20px;
+        }
+        .score{
+            font-size:10rem;
+            font-weight:900;
+            line-height:1;
+            color:#1f5e3a;
+        }
+        .wins{
+            margin-top:25px;
+            font-size:2rem;
+            font-weight:700;
+        }
+        .wins span{
+            display:inline-block;
+            margin-top:10px;
+            background:#102417;
+            color:white;
+            padding:12px 40px;
+            border-radius:20px;
+            font-size:3rem;
+        }
+        .footerInfo{
+            margin-top:40px;
+            display:flex;
+            justify-content:center;
+            gap:25px;
+            flex-wrap:wrap;
+        }
+        .box{
+            background:#eef5e9;
+            color:#111;
+            padding:20px 40px;
+            border-radius:20px;
+            font-size:2rem;
+            font-weight:900;
+        }
+        .timer{
+            font-family:monospace;
+            background:#111;
+            color:#c9ffaf;
+        }
+        .winner{
+            margin-top:35px;
+            text-align:center;
+            font-size:3rem;
+            font-weight:900;
+            color:#1f5e3a;
+        }
+    </style>
+    </head>
+    <body>
+    <div class="board">
+        <div class="title">🥌 ESV Grein – Ligaspiel</div>
+        <div class="teams">
+            <div class="team">
+                <div class="name" id="specNameA">Team A</div>
+                <div class="score" id="specScoreA">0</div>
+                <div class="wins">Spielstand<br><span id="specWinsA">0</span></div>
+            </div>
+            <div class="team red">
+                <div class="name" id="specNameB">Team B</div>
+                <div class="score" id="specScoreB">0</div>
+                <div class="wins">Spielstand<br><span id="specWinsB">0</span></div>
+            </div>
+        </div>
+        <div class="footerInfo">
+            <div class="box">Kehre: <span id="specKehre">1</span></div>
+            <div class="box timer" id="specTimer">00:00:00</div>
+            <div class="box">Spiele gesamt: <span id="specTotalGames">5</span></div>
+        </div>
+        <div class="winner" id="specWinner"></div>
+    </div>
     <script>
-        let anzahlKehren = 6;
-        let teamAPunkte = new Array(6).fill(null);  // null = noch nicht gespielt, 0 = gewertet mit 0
-        let teamBPunkte = new Array(6).fill(null);
-        let gamesWonA = 0, gamesWonB = 0;
-        let overallWinner = false;
-        let teamAName = "Mannschaft W", teamBName = "Mannschaft E";
-        let speechEnabled = true;
-        let requiredGamesToWin = 2;
-        
-        // Timer
-        let gameStartTime = null, timerInterval = null, timerRunning = true, pausedElapsed = 0;
-        const timerDisplayCompact = document.getElementById('timerDisplayCompact');
-        
-        // DOM Steuerung
-        const centerTeamA = document.getElementById('centerTeamA'), centerTeamB = document.getElementById('centerTeamB');
-        const centerRoundA = document.getElementById('centerRoundA'), centerRoundB = document.getElementById('centerRoundB');
-        const centerGamesA = document.getElementById('centerGamesA'), centerGamesB = document.getElementById('centerGamesB');
-        const stampA = document.getElementById('stampA'), stampB = document.getElementById('stampB');
-        const currentKehreSpan = document.getElementById('currentKehreDisplay');
-        const globalWinnerMsgDiv = document.getElementById('globalWinnerMsg');
-        
-        let spectatorWindow = null;
-        const sum = arr => arr.reduce((a,b) => (b !== null ? a + b : a), 0);
-        
-        // Prüft ob eine Kehre bereits gespielt ist (beide Teams haben Wert gesetzt, auch 0)
-        function isKehrePlayed(idx) {
-            return teamAPunkte[idx] !== null && teamBPunkte[idx] !== null;
+    window.updateSpectator = function(data){
+        document.getElementById('specNameA').innerText = data.teamA;
+        document.getElementById('specNameB').innerText = data.teamB;
+        document.getElementById('specScoreA').innerText = data.scoreA;
+        document.getElementById('specScoreB').innerText = data.scoreB;
+        document.getElementById('specWinsA').innerText = data.winsA;
+        document.getElementById('specWinsB').innerText = data.winsB;
+        document.getElementById('specKehre').innerText = data.kehre;
+        document.getElementById('specTimer').innerText = data.time;
+        document.getElementById('specWinner').innerText = data.winner;
+        document.getElementById('specTotalGames').innerText = data.totalGames;
+    }
+    <\/script>
+    </body>
+    </html>`;
+    spectatorWindow = window.open('', 'SpectatorMonitor', 'width=1920,height=1080');
+    spectatorWindow.document.write(spectatorHTML);
+    spectatorWindow.document.close();
+    updateSpectatorWindow();
+}
+
+// ---------- NEUE SPIELLOGIK (2-5 Spiele, Sieg=2P, Unentschieden=1P) ----------
+let kehren = 6;          // anzahl kehren pro spiel
+let pointsA = [];        // kehrenpunkte team A (aktuelles spiel)
+let pointsB = [];        // kehrenpunkte team B
+
+// Liga-Tabelle: Gespeicherte Ergebnisse pro absolviertem Spiel
+// Jeder Eintrag: { pointsTeamA: number, pointsTeamB: number, winner: 'A'|'B'|'draw' }
+let matchesHistory = [];  
+
+let currentMatchKehrenFilled = false; // ob aktuelle kehren bereits vollständig sind (für UI)
+
+// Teamnamen
+let teamAName = "Mannschaft W";
+let teamBName = "Mannschaft E";
+
+// Turnierparameter: Anzahl der Spiele (2-5)
+let totalGames = 5;      // standard 5
+
+// Hilfsfunktionen
+function getTeamAPointsFromMatches(){
+    return matchesHistory.reduce((sum, m) => {
+        if(m.winner === 'A') return sum + 2;
+        if(m.winner === 'draw') return sum + 1;
+        return sum;
+    }, 0);
+}
+
+function getTeamBPointsFromMatches(){
+    return matchesHistory.reduce((sum, m) => {
+        if(m.winner === 'B') return sum + 2;
+        if(m.winner === 'draw') return sum + 1;
+        return sum;
+    }, 0);
+}
+
+function getNumberOfPlayedMatches(){
+    return matchesHistory.length;
+}
+
+function isTournamentFinished(){
+    return getNumberOfPlayedMatches() >= totalGames;
+}
+
+function getWinnerMessageText(){
+    if(!isTournamentFinished()) return "";
+    const ptsA = getTeamAPointsFromMatches();
+    const ptsB = getTeamBPointsFromMatches();
+    if(ptsA > ptsB) return `🏆 TURNIERSIEGER: ${teamAName}  (${ptsA}:${ptsB} Punkte) 🏆`;
+    if(ptsB > ptsA) return `🏆 TURNIERSIEGER: ${teamBName}  (${ptsB}:${ptsA} Punkte) 🏆`;
+    return `🤝 TURNIER UNENTSCHIEDEN – ${ptsA}:${ptsB} Punkte 🤝`;
+}
+
+// Aktuelle Kehren-Arrays zurücksetzen (für neues Spiel)
+function resetCurrentGameArrays(){
+    pointsA = Array(kehren).fill(null);
+    pointsB = Array(kehren).fill(null);
+    currentMatchKehrenFilled = false;
+}
+
+// Kompletter Reset (Turnier neu)
+function fullReset(){
+    if(!confirm("Neues Turnier starten? Alle bisherigen Spielergebnisse werden gelöscht.")) return;
+    matchesHistory = [];
+    resetCurrentGameArrays();
+    document.getElementById('winnerMessage').innerHTML = "";
+    updateAllUI();
+    toast("Neues Turnier gestartet – 2‑5 Spiele mit 2/1/0 Punkten");
+}
+
+// Nur die aktuelle Kehren-Runde löschen (innerhalb des laufenden Spiels)
+function resetRound(){
+    if(isTournamentFinished()){
+        toast("Turnier ist bereits beendet – bitte neues Turnier starten");
+        return;
+    }
+    resetCurrentGameArrays();
+    updateAllUI();
+    toast("Aktuelle Kehren wurden zurückgesetzt.");
+}
+
+// Spiel werten (nach aktuellen Kehren) mit der neuen Punktevergabe (Sieg=2, Unentschieden=1)
+function evaluateGame(){
+    if(isTournamentFinished()){
+        toast("Turnier bereits beendet! Starte ein neues Turnier.");
+        return;
+    }
+    // Prüfen ob alle Kehren ausgefüllt sind
+    for(let i=0;i<kehren;i++){
+        if(pointsA[i] === null || pointsB[i] === null){
+            toast("Bitte erst alle Kehren dieses Spiels ausfüllen.");
+            return;
         }
-        
-        function getCurrentKehreNum() {
-            if (overallWinner) return anzahlKehren;
-            for (let i = 0; i < anzahlKehren; i++) {
-                if (!isKehrePlayed(i)) return i + 1;
-            }
-            return anzahlKehren;
-        }
-        
-        function allKehrenPlayed() {
-            for (let i = 0; i < anzahlKehren; i++) {
-                if (!isKehrePlayed(i)) return false;
-            }
-            return true;
-        }
-        
-        // Timer
-        function updateTimerUI() {
-            let elapsed = 0;
-            if (timerRunning && gameStartTime) elapsed = Date.now() - gameStartTime;
-            else if (!timerRunning && pausedElapsed>0) elapsed = pausedElapsed;
-            else if (gameStartTime) elapsed = Date.now() - gameStartTime;
-            const totalSec = Math.floor(elapsed/1000);
-            const h = Math.floor(totalSec/3600), m = Math.floor((totalSec%3600)/60), s = totalSec%60;
-            const timeStr = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-            timerDisplayCompact.innerText = timeStr;
-            if (spectatorWindow && !spectatorWindow.closed) {
-                try { spectatorWindow.updateSpectatorTimer(timeStr); } catch(e) {}
-            }
-        }
-        function startTimerInterval() { if(timerInterval) clearInterval(timerInterval); timerInterval = setInterval(updateTimerUI, 200); }
-        function initTimer() { gameStartTime = Date.now(); timerRunning = true; pausedElapsed = 0; startTimerInterval(); updateTimerUI(); }
-        function resetTimer() { gameStartTime = Date.now(); timerRunning = true; pausedElapsed = 0; updateTimerUI(); showToast("Spielzeit zurückgesetzt"); }
-        function pauseTimer() {
-            if (timerRunning) { pausedElapsed = Date.now() - gameStartTime; timerRunning = false; document.getElementById('timerPauseCompactBtn').innerText = "Start"; }
-            else { gameStartTime = Date.now() - pausedElapsed; timerRunning = true; document.getElementById('timerPauseCompactBtn').innerText = "Pause"; startTimerInterval(); }
-            updateTimerUI();
-        }
-        document.getElementById('timerResetCompactBtn').onclick = resetTimer;
-        document.getElementById('timerPauseCompactBtn').onclick = pauseTimer;
-        
-        function updateAllDisplays() {
-            const sumA = sum(teamAPunkte), sumB = sum(teamBPunkte);
-            const current = getCurrentKehreNum();
-            const allPlayed = allKehrenPlayed();
-            const winnerMsg = overallWinner ? (gamesWonA >= requiredGamesToWin ? teamAName : teamBName) : null;
-            
-            centerRoundA.innerText = sumA; centerRoundB.innerText = sumB;
-            centerGamesA.innerText = gamesWonA; centerGamesB.innerText = gamesWonB;
-            stampA.innerText = (gamesWonA >= requiredGamesToWin) ? '🏆 GESAMTSIEGER' : '';
-            stampB.innerText = (gamesWonB >= requiredGamesToWin) ? '🏆 GESAMTSIEGER' : '';
-            currentKehreSpan.innerText = overallWinner ? "🏆" : current;
-            
-            if (overallWinner) {
-                globalWinnerMsgDiv.innerHTML = `<div style="background:#ffecb3; border-radius:60px; padding:8px;">🏆🏆🏆 ${winnerMsg} GESAMTSIEGER (${requiredGamesToWin} Siege) 🏆🏆🏆</div>`;
-                document.body.classList.add('game-finished');
+    }
+    const sumA = pointsA.reduce((a,b)=>a+b,0);
+    const sumB = pointsB.reduce((a,b)=>a+b,0);
+    
+    let matchResult = null;
+    let winnerText = "";
+    if(sumA > sumB){
+        matchResult = { pointsTeamA: sumA, pointsTeamB: sumB, winner: 'A' };
+        winnerText = `${teamAName} gewinnt das Spiel (2 Punkte)`;
+        toast(winnerText);
+    } else if(sumB > sumA){
+        matchResult = { pointsTeamA: sumA, pointsTeamB: sumB, winner: 'B' };
+        winnerText = `${teamBName} gewinnt das Spiel (2 Punkte)`;
+        toast(winnerText);
+    } else {
+        matchResult = { pointsTeamA: sumA, pointsTeamB: sumB, winner: 'draw' };
+        winnerText = `Unentschieden! Beide erhalten 1 Punkt`;
+        toast(winnerText);
+    }
+    
+    matchesHistory.push(matchResult);
+    
+    // Prüfen, ob Turnier zu Ende
+    if(isTournamentFinished()){
+        document.getElementById('winnerMessage').innerHTML = getWinnerMessageText();
+        toast(`Turnier beendet! ${getWinnerMessageText()}`);
+    } else {
+        document.getElementById('winnerMessage').innerHTML = `✅ Spiel gewertet! Nächstes Spiel (${getNumberOfPlayedMatches()}/${totalGames})`;
+    }
+    
+    // Neues Spiel starten: Kehren zurücksetzen
+    resetCurrentGameArrays();
+    updateAllUI();
+}
+
+// Rendering der Kehren-Panels
+function renderPanels(){
+    const leftPanel = document.getElementById('leftPanel');
+    const rightPanel = document.getElementById('rightPanel');
+    leftPanel.innerHTML = '';
+    rightPanel.innerHTML = '';
+    
+    for(let i=0;i<kehren;i++){
+        const rowA = createKehreRow('A', i, pointsA[i]);
+        const rowB = createKehreRow('B', i, pointsB[i]);
+        // aktive Kehre: erste nicht ausgefüllte
+        let activeKehre = 0;
+        for(let j=0;j<kehren;j++){
+            if(pointsA[j] === null || pointsB[j] === null){
+                activeKehre = j;
+                break;
             } else {
-                if (allPlayed && !overallWinner) {
-                    globalWinnerMsgDiv.innerHTML = `<div style="background:#ffe0a3; border-radius:60px; padding:8px;">📢 Alle ${anzahlKehren} Kehren gespielt! Nutze "Spiel automatisch werten". 📢</div>`;
-                } else {
-                    globalWinnerMsgDiv.innerHTML = '';
-                }
-                document.body.classList.remove('game-finished');
-            }
-            
-            // Farben Kehren
-            const leftRows = document.querySelectorAll('#leftKehrenPanel .kehre-row');
-            const rightRows = document.querySelectorAll('#rightKehrenPanel .kehre-row');
-            for (let i = 0; i < leftRows.length; i++) {
-                leftRows[i].classList.remove('current-kehre-bg','played-kehre-bg');
-                rightRows[i].classList.remove('current-kehre-bg','played-kehre-bg');
-                if (!overallWinner) {
-                    if (i+1 === current) { leftRows[i].classList.add('current-kehre-bg'); rightRows[i].classList.add('current-kehre-bg'); }
-                    else if (i+1 < current) { leftRows[i].classList.add('played-kehre-bg'); rightRows[i].classList.add('played-kehre-bg'); }
-                }
-            }
-            
-            // Zuschauer-Fenster
-            if (spectatorWindow && !spectatorWindow.closed) {
-                try {
-                    spectatorWindow.updateSpectatorData({
-                        teamA: teamAName, teamB: teamBName,
-                        sumA: sumA, sumB: sumB,
-                        gamesA: gamesWonA, gamesB: gamesWonB,
-                        currentKehre: overallWinner ? "🏆" : current,
-                        overallWinner: overallWinner,
-                        winnerName: winnerMsg,
-                        required: requiredGamesToWin
-                    });
-                } catch(e) {}
+                activeKehre = kehren; // alle voll
             }
         }
-        
-        function speakText(text) { if(speechEnabled && window.speechSynthesis) { try{ window.speechSynthesis.cancel(); let u=new SpeechSynthesisUtterance(text); u.lang='de-DE'; u.rate=0.9; window.speechSynthesis.speak(u); }catch(e){} } }
-        function showToast(msg) { let t=document.getElementById('dynamicToast'); if(!t){ t=document.createElement('div'); t.id='dynamicToast'; t.className='toast-msg'; document.body.appendChild(t); } t.innerText=msg; t.style.display='block'; setTimeout(()=>t.style.display='none',2200); }
-        
-        // Punkte setzen (inkl. 0)
-        function setPoints(team, kehreIdx, punkte) {
-            if (overallWinner) { showToast("Spiel beendet"); return; }
-            if (punkte >= 0 && punkte <= 4) {
-                const currentVal = (team === 'A') ? teamAPunkte[kehreIdx] : teamBPunkte[kehreIdx];
-                if (currentVal === punkte) return; // nichts ändern
-                
-                if (team === 'A') teamAPunkte[kehreIdx] = punkte;
-                else teamBPunkte[kehreIdx] = punkte;
-                
-                // Sprachausgabe nur bei Punkten 1-4, bei 0 nur kurzer Hinweis
-                if (punkte > 0) {
-                    speakText(`${team==='A'?teamAName:teamBName} Kehre ${kehreIdx+1} ${punkte} Punkt${punkte!==1?'e':''}.`);
-                } else {
-                    speakText(`${team==='A'?teamAName:teamBName} Kehre ${kehreIdx+1} null Punkte.`);
-                }
-                
-                renderFullPanels();
-                updateAllDisplays();
-                
-                // Automatischer Sprung zur nächsten Kehre, wenn beide Teams die aktuelle Kehre gespielt haben
-                if (isKehrePlayed(kehreIdx)) {
-                    let nextFree = -1;
-                    for (let i = kehreIdx + 1; i < anzahlKehren; i++) {
-                        if (!isKehrePlayed(i)) { nextFree = i; break; }
-                    }
-                    if (nextFree !== -1) {
-                        showToast(`⏩ Weiter zu Kehre ${nextFree+1}`);
-                    } else {
-                        if (allKehrenPlayed() && !overallWinner) {
-                            showToast(`🏁 Alle ${anzahlKehren} Kehren gespielt! Jetzt auswerten.`, 2500);
-                            speakText(`Alle Kehren gespielt. Bitte Spiel auswerten.`);
-                            updateAllDisplays(); // sorgt für Hinweis im Center
-                        }
-                    }
-                }
-            }
+        if(i === activeKehre && !isTournamentFinished() && getNumberOfPlayedMatches() < totalGames){
+            rowA.classList.add('active');
+            rowB.classList.add('active');
         }
-        
-        function deleteKehre(team, idx) {
-            if (overallWinner) return;
-            if (team === 'A') teamAPunkte[idx] = null;
-            else teamBPunkte[idx] = null;
-            renderFullPanels();
-            updateAllDisplays();
-            showToast(`Kehre ${idx+1} gelöscht`);
-        }
-        
-        function awardGame(winner) {
-            if(overallWinner) return;
-            if(winner==='A') gamesWonA++; else gamesWonB++;
-            updateAllDisplays();
-            if(gamesWonA >= requiredGamesToWin || gamesWonB >= requiredGamesToWin) {
-                overallWinner = true;
-                speakText(`${winner==='A'?teamAName:teamBName} hat ${requiredGamesToWin} Spiele gewonnen und ist Gesamtsieger.`);
-                updateAllDisplays();
+        leftPanel.appendChild(rowA);
+        rightPanel.appendChild(rowB);
+    }
+}
+
+function createKehreRow(team, index, value){
+    const row = document.createElement('div');
+    row.className = 'kehreRow';
+    row.innerHTML = `
+        <div class="kehreNr">${index+1}</div>
+        <div class="points">
+            <button class="pointBtn">0</button>
+            <button class="pointBtn">1</button>
+            <button class="pointBtn">2</button>
+            <button class="pointBtn">3</button>
+            <button class="pointBtn">4</button>
+        </div>
+        <div class="valueBox">${value===null?'-':value}</div>
+    `;
+    const buttons = row.querySelectorAll('.pointBtn');
+    buttons.forEach(btn => {
+        btn.addEventListener('click', ()=>{
+            if(isTournamentFinished()){
+                toast("Turnier beendet – neues Turnier starten");
                 return;
             }
-            // Reset für neue Runde: alle Kehren auf null setzen
-            for(let i=0;i<anzahlKehren;i++) { teamAPunkte[i]=null; teamBPunkte[i]=null; }
-            renderFullPanels();
-            updateAllDisplays();
-            speakText(`Neue Runde beginnt mit Kehre 1.`);
-        }
-        
-        function autoEvaluate() {
-            if(overallWinner) { showToast("Spiel vorbei"); return; }
-            if (!allKehrenPlayed()) {
-                showToast(`Es sind noch nicht alle ${anzahlKehren} Kehren gespielt! Bitte alle Kehren (auch mit 0) ausfüllen.`);
+            if(getNumberOfPlayedMatches() >= totalGames){
+                toast("Alle Spiele absolviert – Turnier vorbei");
                 return;
             }
-            const sumA = sum(teamAPunkte), sumB = sum(teamBPunkte);
-            if(sumA === sumB) {
-                if(confirm(`Unentschieden (${sumA}:${sumB}). Wer gewinnt das Spiel?`)) {
-                    let winner = confirm(`Möchte ${teamAName} gewinnen? OK = ${teamAName}, Abbrechen = ${teamBName}`) ? 'A' : 'B';
-                    awardGame(winner);
-                }
-            } else {
-                const winner = sumA > sumB ? 'A' : 'B';
-                if(confirm(`${winner==='A'?teamAName:teamBName} gewinnt (${sumA}:${sumB}). Bestätigen?`)) awardGame(winner);
-            }
+            setPoints(team, index, parseInt(btn.innerText));
+        });
+    });
+    return row;
+}
+
+function setPoints(team, index, val){
+    if(isTournamentFinished()){
+        toast("Turnier beendet – bitte neues Turnier starten");
+        return;
+    }
+    if(team === 'A'){
+        pointsA[index] = val;
+        if(pointsB[index] === null) pointsB[index] = 0;
+    } else {
+        pointsB[index] = val;
+        if(pointsA[index] === null) pointsA[index] = 0;
+    }
+    renderPanels();
+    updateScoreboardNumbers();
+    // Nach setzen prüfen ob alle Kehren nun voll sind (für Info)
+    let allFilled = true;
+    for(let i=0;i<kehren;i++){
+        if(pointsA[i] === null || pointsB[i] === null) { allFilled = false; break; }
+    }
+    if(allFilled && !isTournamentFinished() && getNumberOfPlayedMatches() < totalGames){
+        toast("Alle Kehren ausgefüllt! Jetzt auf 'Spiel werten' klicken.");
+    }
+    updateSpectatorWindow();
+}
+
+function updateScoreboardNumbers(){
+    const sumA = pointsA.reduce((a,b)=>a+(b||0),0);
+    const sumB = pointsB.reduce((a,b)=>a+(b||0),0);
+    document.getElementById('scoreA').innerText = sumA;
+    document.getElementById('scoreB').innerText = sumB;
+    
+    const playedMatches = getNumberOfPlayedMatches();
+    const tourPointsA = getTeamAPointsFromMatches();
+    const tourPointsB = getTeamBPointsFromMatches();
+    document.getElementById('gamesA').innerText = tourPointsA;
+    document.getElementById('gamesB').innerText = tourPointsB;
+    
+    // Aktuelle Kehre anzeigen
+    let active = 1;
+    for(let i=0;i<kehren;i++){
+        if(pointsA[i]===null || pointsB[i]===null){
+            active = i+1;
+            break;
+        } else {
+            active = kehren;
         }
-        
-        function resetRound() {
-            if(overallWinner) { showToast("Spiel beendet"); return; }
-            for(let i=0;i<anzahlKehren;i++){ teamAPunkte[i]=null; teamBPunkte[i]=null; }
-            renderFullPanels(); updateAllDisplays(); showToast("Runde gelöscht"); speakText("Runde gelöscht");
+    }
+    document.getElementById('currentKehre').innerText = (playedMatches >= totalGames) ? "–" : active;
+    
+    // Aktualisiere Teamnamen und totalGames Anzeige
+    const teamANameField = document.getElementById('teamAInput').value;
+    const teamBNameField = document.getElementById('teamBInput').value;
+    teamAName = teamANameField;
+    teamBName = teamBNameField;
+    document.getElementById('leftTitle').innerText = teamAName;
+    document.getElementById('rightTitle').innerText = teamBName;
+    document.getElementById('centerNameA').innerText = teamAName;
+    document.getElementById('centerNameB').innerText = teamBName;
+    document.getElementById('totalGamesDisplay').innerText = totalGames;
+    
+    if(isTournamentFinished()){
+        document.getElementById('winnerMessage').innerHTML = getWinnerMessageText();
+    } else if(playedMatches < totalGames){
+        if(document.getElementById('winnerMessage').innerHTML === "" || document.getElementById('winnerMessage').innerHTML.includes("gewertet")){
+            // keine überschreibung der Siegeranzeige wenn bereits fertig
         }
-        function newGame() {
-            if(confirm("Komplettreset?")) {
-                for(let i=0;i<anzahlKehren;i++){ teamAPunkte[i]=null; teamBPunkte[i]=null; }
-                gamesWonA=0; gamesWonB=0; overallWinner=false;
-                resetTimer(); renderFullPanels(); updateAllDisplays(); showToast("Neues Spiel"); speakText("Neues Spiel");
-            }
+    }
+}
+
+function updateAllUI(){
+    renderPanels();
+    updateScoreboardNumbers();
+    updateSpectatorWindow();
+    // Prüfe Turnierstatus
+    if(isTournamentFinished()){
+        document.getElementById('winnerMessage').innerHTML = getWinnerMessageText();
+    } else {
+        if(getNumberOfPlayedMatches() === 0 && document.getElementById('winnerMessage').innerHTML !== "")
+            document.getElementById('winnerMessage').innerHTML = "";
+    }
+}
+
+function updateSpectatorWindow(){
+    if(!spectatorWindow || spectatorWindow.closed) return;
+    const sumA = pointsA.reduce((a,b)=>a+(b||0),0);
+    const sumB = pointsB.reduce((a,b)=>a+(b||0),0);
+    let activeKehreNum = 1;
+    for(let i=0;i<kehren;i++){
+        if(pointsA[i]===null || pointsB[i]===null){
+            activeKehreNum = i+1;
+            break;
+        } else { activeKehreNum = kehren; }
+    }
+    spectatorWindow.updateSpectator({
+        teamA: teamAName,
+        teamB: teamBName,
+        scoreA: sumA,
+        scoreB: sumB,
+        winsA: getTeamAPointsFromMatches(),
+        winsB: getTeamBPointsFromMatches(),
+        kehre: (getNumberOfPlayedMatches() >= totalGames) ? "FERTIG" : activeKehreNum,
+        time: document.getElementById('timer').innerText,
+        winner: isTournamentFinished() ? getWinnerMessageText() : (getNumberOfPlayedMatches()>0?`${getNumberOfPlayedMatches()}/${totalGames} Spiele` : "Läuft"),
+        totalGames: totalGames
+    });
+}
+
+function initTimer(){
+    const timerSpan = document.getElementById('timer');
+    const start = Date.now();
+    setInterval(()=>{
+        const diff = Math.floor((Date.now()-start)/1000);
+        const h = String(Math.floor(diff/3600)).padStart(2,'0');
+        const m = String(Math.floor((diff%3600)/60)).padStart(2,'0');
+        const s = String(diff%60).padStart(2,'0');
+        timerSpan.innerText = `${h}:${m}:${s}`;
+        updateSpectatorWindow();
+    }, 1000);
+}
+
+function toast(msg){
+    const t = document.getElementById('toast');
+    t.innerText = msg;
+    t.classList.add('show');
+    setTimeout(()=> t.classList.remove('show'), 2000);
+}
+
+// Eventlistener für Teamnamen, Kehren-Anzahl, Spiele-Anzahl (2-5)
+document.getElementById('teamAInput').addEventListener('input', ()=>{
+    if(isTournamentFinished()) toast("Turnier beendet, Namen können bei Neustart geändert werden");
+    updateAllUI();
+});
+document.getElementById('teamBInput').addEventListener('input', ()=>{
+    if(isTournamentFinished()) toast("Turnier beendet, Namen können bei Neustart geändert werden");
+    updateAllUI();
+});
+document.getElementById('kehrenSelect').addEventListener('change', (e)=>{
+    if(getNumberOfPlayedMatches() > 0 && !confirm("Kehrenanzahl ändern setzt das aktuelle Spiel zurück! Fortfahren?")){
+        e.target.value = kehren;
+        return;
+    }
+    kehren = parseInt(e.target.value);
+    resetCurrentGameArrays();
+    updateAllUI();
+    toast(`${kehren} Kehren pro Spiel`);
+});
+document.getElementById('gamesCountSelect').addEventListener('change', (e)=>{
+    let newTotal = parseInt(e.target.value);
+    if(getNumberOfPlayedMatches() > 0){
+        if(!confirm(`Anzahl der Spiele ändern (aktuell ${totalGames} → ${newTotal}) setzt das gesamte Turnier zurück. Fortfahren?`)){
+            e.target.value = totalGames;
+            return;
         }
-        function resetScoresOnly() {
-            if(confirm("Nur Siege zurücksetzen?")) { gamesWonA=0; gamesWonB=0; overallWinner=false; updateAllDisplays(); showToast("Siege zurückgesetzt"); }
-        }
-        
-        function changeKehrenAnzahl(neu) {
-            let neueA = new Array(neu).fill(null);
-            let neueB = new Array(neu).fill(null);
-            for(let i=0;i<Math.min(teamAPunkte.length,neu);i++) {
-                neueA[i] = teamAPunkte[i];
-                neueB[i] = teamBPunkte[i];
-            }
-            teamAPunkte = neueA; teamBPunkte = neueB; anzahlKehren = neu;
-            renderFullPanels(); updateAllDisplays(); showToast(`Kehren: ${neu}`);
-        }
-        
-        function renderFullPanels() {
-            const leftPanel = document.getElementById('leftKehrenPanel');
-            leftPanel.innerHTML = '';
-            for(let i=0;i<anzahlKehren;i++) {
-                let row = document.createElement('div'); row.className='kehre-row';
-                let currentValA = (teamAPunkte[i] !== null) ? teamAPunkte[i] : '-';
-                let displayValA = (teamAPunkte[i] !== null) ? teamAPunkte[i] : '';
-                row.innerHTML = `<div class="kehre-nr">${i+1}</div><div class="punkte-group">
-                    <button class="side-punkt" data-val="0">0</button>
-                    <button class="side-punkt" data-val="1">1</button>
-                    <button class="side-punkt" data-val="2">2</button>
-                    <button class="side-punkt" data-val="3">3</button>
-                    <button class="side-punkt" data-val="4">4</button>
-                    <span class="side-value">${displayValA === '' ? '-' : displayValA}</span>
-                    <button class="side-del">🗑️</button>
-                </div>`;
-                row.querySelectorAll('.side-punkt').forEach(btn=>btn.addEventListener('click',()=>setPoints('A',i,parseInt(btn.dataset.val))));
-                row.querySelector('.side-del').addEventListener('click',()=>deleteKehre('A',i));
-                leftPanel.appendChild(row);
-            }
-            const rightPanel = document.getElementById('rightKehrenPanel');
-            rightPanel.innerHTML = '';
-            for(let i=0;i<anzahlKehren;i++) {
-                let row = document.createElement('div'); row.className='kehre-row';
-                let displayValB = (teamBPunkte[i] !== null) ? teamBPunkte[i] : '';
-                row.innerHTML = `<div class="kehre-nr">${i+1}</div><div class="punkte-group">
-                    <button class="side-punkt" data-val="0">0</button>
-                    <button class="side-punkt" data-val="1">1</button>
-                    <button class="side-punkt" data-val="2">2</button>
-                    <button class="side-punkt" data-val="3">3</button>
-                    <button class="side-punkt" data-val="4">4</button>
-                    <span class="side-value">${displayValB === '' ? '-' : displayValB}</span>
-                    <button class="side-del">🗑️</button>
-                </div>`;
-                row.querySelectorAll('.side-punkt').forEach(btn=>btn.addEventListener('click',()=>setPoints('B',i,parseInt(btn.dataset.val))));
-                row.querySelector('.side-del').addEventListener('click',()=>deleteKehre('B',i));
-                rightPanel.appendChild(row);
-            }
-            document.getElementById('leftTeamName').innerHTML = teamAName;
-            document.getElementById('rightTeamName').innerHTML = teamBName;
-            centerTeamA.innerText = teamAName; centerTeamB.innerText = teamBName;
-            updateAllDisplays();
-        }
-        
-        function setRequiredGames(target) {
-            requiredGamesToWin = target;
-            document.querySelectorAll('.win-option-btn').forEach(btn=>{
-                if(parseInt(btn.dataset.target)===target) btn.classList.add('active-win-option');
-                else btn.classList.remove('active-win-option');
-            });
-            showToast(`Gesamtsieg bei ${target} Siegen`);
-            if(!overallWinner) updateAllDisplays();
-            else if(!(gamesWonA>=target || gamesWonB>=target)) { overallWinner=false; updateAllDisplays(); }
-        }
-        
-        function openSpectatorWindow() {
-            if (spectatorWindow && !spectatorWindow.closed) { spectatorWindow.focus(); return; }
-            const spectatorHTML = `<!DOCTYPE html>
-            <html><head><meta charset="UTF-8"><title>ESV Grein · Zuschauer</title><style>
-                *{margin:0;padding:0;box-sizing:border-box} body{background:linear-gradient(145deg,#0f2e1a,#091f0e);min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',system-ui;padding:20px}
-                .card{max-width:1200px;width:95%;background:#fefcf5;border-radius:80px;padding:40px 50px;text-align:center;box-shadow:0 30px 50px rgba(0,0,0,0.4)}
-                h2{font-size:2rem;color:#1b4d1b;background:#eef5e9;display:inline-block;padding:8px 40px;border-radius:80px;margin-bottom:30px}
-                .teams{display:flex;gap:50px;justify-content:center;margin:30px 0;flex-wrap:wrap}
-                .team{flex:1;min-width:250px;background:#fafef5;border-radius:60px;padding:30px 20px;border-bottom:8px solid}
-                .team-name{font-size:2.5rem;font-weight:900;margin-bottom:20px}
-                .sum{font-size:6rem;font-weight:900;background:#ecf7e5;border-radius:80px;padding:20px;margin:20px 0}
-                .games{font-size:1.5rem;background:#e9f2e2;border-radius:60px;padding:15px}
-                .games-num{font-size:3rem;font-weight:800;background:#1b4d1b;color:white;display:inline-block;padding:8px 30px;border-radius:70px;margin-top:10px}
-                .kehre{margin-top:30px;font-size:1.8rem;background:#eef3e4;display:inline-block;padding:15px 40px;border-radius:80px}
-                .timer{margin-top:20px;font-size:2rem;font-family:monospace;background:#1e2a1e;color:#f5ffd3;display:inline-block;padding:10px 35px;border-radius:70px}
-                .winner{margin-top:20px;font-size:1.5rem;background:#ffecb3;display:inline-block;padding:10px 30px;border-radius:60px}
-            </style></head><body>
-            <div class="card"><h2>🥌 ESV Grein 🥌</h2>
-            <div class="teams"><div class="team" style="border-bottom-color:#2c7a4d;"><div class="team-name" id="specTeamA">-</div><div class="sum" id="specSumA">0</div><div class="games">🏆 Spiele gewonnen<br><span class="games-num" id="specGamesA">0</span></div></div>
-            <div class="team" style="border-bottom-color:#c0392b;"><div class="team-name" id="specTeamB">-</div><div class="sum" id="specSumB">0</div><div class="games">🏆 Spiele gewonnen<br><span class="games-num" id="specGamesB">0</span></div></div></div>
-            <div class="kehre" id="specKehre">Kehre 1</div><div class="timer" id="specTimer">00:00:00</div><div id="specWinnerMsg" class="winner" style="display:none"></div></div>
-            <script>
-                window.updateSpectatorData = function(d){
-                    document.getElementById('specTeamA').innerText = d.teamA; document.getElementById('specTeamB').innerText = d.teamB;
-                    document.getElementById('specSumA').innerText = d.sumA; document.getElementById('specSumB').innerText = d.sumB;
-                    document.getElementById('specGamesA').innerText = d.gamesA; document.getElementById('specGamesB').innerText = d.gamesB;
-                    document.getElementById('specKehre').innerHTML = d.overallWinner ? "🏆 SPIEL BEENDET 🏆" : "Aktuelle Kehre: " + d.currentKehre;
-                    if(d.overallWinner && d.winnerName){
-                        let w = document.getElementById('specWinnerMsg');
-                        w.innerText = "🏆🏆🏆 " + d.winnerName + " GESAMTSIEGER (" + d.required + " Siege) 🏆🏆🏆";
-                        w.style.display = "inline-block";
-                    } else { document.getElementById('specWinnerMsg').style.display = "none"; }
-                };
-                window.updateSpectatorTimer = function(t){ document.getElementById('specTimer').innerText = t; };
-            <\/script></body></html>`;
-            spectatorWindow = window.open("", "SpectatorMonitor", "width=1280,height=720,resizable=yes,scrollbars=yes");
-            if (spectatorWindow) {
-                spectatorWindow.document.write(spectatorHTML);
-                spectatorWindow.document.close();
-                setTimeout(() => {
-                    if (spectatorWindow && !spectatorWindow.closed) {
-                        const sumA = sum(teamAPunkte), sumB = sum(teamBPunkte);
-                        spectatorWindow.updateSpectatorData({
-                            teamA: teamAName, teamB: teamBName, sumA, sumB,
-                            gamesA: gamesWonA, gamesB: gamesWonB,
-                            currentKehre: overallWinner ? "🏆" : getCurrentKehreNum(),
-                            overallWinner, winnerName: overallWinner ? (gamesWonA >= requiredGamesToWin ? teamAName : teamBName) : null,
-                            required: requiredGamesToWin
-                        });
-                        updateTimerUI();
-                    }
-                }, 100);
-            } else { alert("Bitte Pop-ups erlauben für den Zuschauer-Monitor."); }
-        }
-        
-        // Event Bindings
-        document.getElementById('applyKehrenSide').onclick = () => { let neu = parseInt(document.getElementById('kehrenSelectSide').value); if(neu !== anzahlKehren && confirm(`Kehren auf ${neu} ändern?`)) changeKehrenAnzahl(neu); };
-        document.getElementById('teamANameSide').oninput = (e) => { teamAName = e.target.value.trim()||"Team A"; renderFullPanels(); };
-        document.getElementById('teamBNameSide').oninput = (e) => { teamBName = e.target.value.trim()||"Team B"; renderFullPanels(); };
-        document.getElementById('speechToggleSide').onchange = (e) => speechEnabled = e.target.checked;
-        document.getElementById('winGameBtn').onclick = autoEvaluate;
-        document.getElementById('autoEvaluateGameBtn').onclick = autoEvaluate;
-        document.getElementById('resetRoundBtn').onclick = resetRound;
-        document.getElementById('newGameBtn').onclick = newGame;
-        document.getElementById('resetTotalBtn').onclick = resetScoresOnly;
-        document.getElementById('printPDFBtn').onclick = () => window.print();
-        document.getElementById('openSpectatorBtn').onclick = openSpectatorWindow;
-        document.querySelectorAll('.win-option-btn').forEach(btn=>btn.addEventListener('click',()=>setRequiredGames(parseInt(btn.dataset.target))));
-        
-        function init() {
-            anzahlKehren=6; teamAPunkte=new Array(6).fill(null); teamBPunkte=new Array(6).fill(null);
-            gamesWonA=0; gamesWonB=0; overallWinner=false; requiredGamesToWin=2;
-            teamAName="Mannschaft W"; teamBName="Mannschaft E";
-            document.getElementById('teamANameSide').value=teamAName; document.getElementById('teamBNameSide').value=teamBName;
-            renderFullPanels(); initTimer();
-        }
-        init();
-    </script>
+    }
+    totalGames = newTotal;
+    matchesHistory = [];
+    resetCurrentGameArrays();
+    document.getElementById('winnerMessage').innerHTML = "";
+    updateAllUI();
+    toast(`Neue Spielanzahl: ${totalGames} (Sieg 2 Pkt / Remis 1 Pkt)`);
+});
+
+// initial setup
+function init(){
+    totalGames = 5;
+    kehren = 6;
+    matchesHistory = [];
+    resetCurrentGameArrays();
+    updateAllUI();
+    initTimer();
+    setInterval(()=> updateSpectatorWindow(), 1000);
+}
+
+init();
+</script>
+
 </body>
 </html>
